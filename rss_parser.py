@@ -1,38 +1,37 @@
 import feedparser
+import requests
+import pprint
 
 def rss_parser(feed : list) -> tuple[bool, list]:
     provider : str = feed[0]
     genre : str = feed[1]
-    url : str = feed[2]
+    feed_url = feed[2]
 
-    feed_data = feedparser.parse(url)
+    try:
+        response = requests.get(feed_url)
 
-    if feed_data.bozo == 1:
-        return False, "RSS Feed Error"        # placeholder bool/str tuples returned in lieu of logging.
+        if response.status_code == 200:
+            feed_data = feedparser.parse(response.text)
+            entries = feed_data.entries
+        else:
+            print(f"Failed to fetch the feed: {response.status_code}")
+            return False, response.status_code
+        
+    except requests.exceptions.RequestException as e:
+        return False, e
 
-    if hasattr(feed_data, "status") and feed_data.status >= 400:
-        return False, "HTTP error"
+    articles = []    
 
-    if not feed_data.entries:
-        return False, "No data found from RSS url"
-    
-
-    articles_list = []
-
-    for entry in feed_data.entries:
-
-        link = entry.link
-        if ".com" in link:
-            link = link.replace(".com", ".co.uk")   # short term fix for bbc issue which was pulling mostly .com addresses and we need .co.uk. Will fix properly ASAP
-
-        articles_list.append({
+    for entry in entries:
+        articles.append({
             "provider": provider,
             "genre": genre,
             "title": entry.title,
-            "link": link,
+            "link":entry.link,
             "summary": entry.get("summary", ""),
             "published": entry.get("published", ""),
             "source": feed_data.feed.get("title", "Unknown Source")
         })
     
-    return True, articles_list
+    return True, articles
+
