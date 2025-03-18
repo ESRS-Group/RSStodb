@@ -1,6 +1,5 @@
 import feedparser
 import requests
-import pprint
 
 def rss_parser(feed : list) -> tuple[bool, list]:
     provider : str = feed[0]
