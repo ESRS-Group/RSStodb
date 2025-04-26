@@ -6,8 +6,12 @@ def rss_parser(feed : list) -> tuple[bool, list]:
     genre : str = feed[1]
     feed_url = feed[2]
 
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; RSSFetcher/1.0; +https://yourdomain.com/)"
+    }
+
     try:
-        response = requests.get(feed_url)
+        response = requests.get(feed_url, headers=headers, timeout=10)
 
         if response.status_code == 200:
             feed_data = feedparser.parse(response.text)
