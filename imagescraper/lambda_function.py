@@ -11,7 +11,7 @@ def find_image(url, class_code):
     try:
         r = requests.get(url=url, headers=headers, timeout=10)
         r.raise_for_status()
-        soup = BeautifulSoup(r.content, "lxml")
+        soup = BeautifulSoup(r.content, "html.parser")
         image_section = str(soup.find(class_=class_code))
         section = image_section.find("src=")
         return image_section[section:].split('"')[1]
