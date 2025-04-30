@@ -1,5 +1,5 @@
 from rss_parser import rss_parser
-from db_connect import main as db_connector
+from testdb_connect import main as db_connector
 from pymongo import errors
 from datetime import datetime
 
