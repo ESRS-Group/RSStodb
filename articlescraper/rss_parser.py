@@ -1,5 +1,6 @@
 import feedparser
 import requests
+from datetime import datetime
 
 def rss_parser(feed : list) -> tuple[bool, list]:
     provider : str = feed[0]
@@ -26,13 +27,21 @@ def rss_parser(feed : list) -> tuple[bool, list]:
     articles = []    
 
     for entry in entries:
+        published_str = entry.get("published", "").strip()
+        if published_str:
+            try:
+                published_date = datetime.strptime(published_str, "%a, %d %b %Y %H:%M:%S %Z")
+            except ValueError:
+                published_date = datetime.now()
+        else:
+            published_date = datetime.now()
         articles.append({
             "provider": provider,
             "genre": genre,
             "title": entry.title,
             "link":entry.link,
             "summary": entry.get("summary", ""),
-            "published": entry.get("published", ""),
+            "published": published_date,
             "source": feed_data.feed.get("title", "Unknown Source")
         })
     
