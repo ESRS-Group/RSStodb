@@ -1,6 +1,7 @@
 import feedparser
 import requests
 from datetime import datetime
+from dateutil import parser as date_parser
 
 def rss_parser(feed : list) -> tuple[bool, list]:
     provider : str = feed[0]
@@ -30,8 +31,8 @@ def rss_parser(feed : list) -> tuple[bool, list]:
         published_str = entry.get("published", "").strip()
         if published_str:
             try:
-                published_date = datetime.strptime(published_str, "%a, %d %b %Y %H:%M:%S %Z")
-            except ValueError:
+                published_date = date_parser.parse(published_str) if published_str else datetime.now()
+            except (ValueError, TypeError):
                 published_date = datetime.now()
         else:
             published_date = datetime.now()

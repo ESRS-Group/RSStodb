@@ -1,7 +1,8 @@
 from rss_parser import rss_parser
-from testdb_connect import main as db_connector
+from db_connect import main as db_connector
 from pymongo import errors
 from datetime import datetime
+from translation import main as translator
 
 def lambda_handler(event, context):
     """
@@ -24,11 +25,15 @@ def lambda_handler(event, context):
     feeds = feeds_collection.find()
 
     errors_list = []
-
+    success_count = 0
+    dup_count = 0
+    fail_count = 0
     for feed in feeds:
         provider = feed.get("provider")
         genre = feed.get("genre")
         url = feed.get("url")
+        language = feed.get("language")
+        
 
         if not all([provider, genre, url]):
             print(f"Skipping incomplete feed config: {feed}")
@@ -36,29 +41,48 @@ def lambda_handler(event, context):
 
         success, articles_list = rss_parser([provider, genre, url])
 
+
         if success:
             feeds_collection.update_one(
                 {"url": url},
                 {"$set": {"Last_Update": datetime.now()}}
             )
             for article in articles_list:
+                article["translated"] = False
+                article["o_language"] = language
+                if language != "en":
+                    title_translation = translator(language, article["title"])
+                    summary_translation = translator(language, article["summary"])
+                    if title_translation[0] and summary_translation[0]:
+                        article["title"] = title_translation[1]
+                        article["summary"] = summary_translation[1]
+                        article["translated"] = True
+                    else:
+                        print(f"Translation errors: Title: {title_translation[1]}, Summary: {summary_translation[1]}")
+                        continue
                 try:
                     articles_collection.insert_one(article)
+                    success_count += 1
                 except errors.DuplicateKeyError:
-                    # It's okay, article already exists
+                    dup_count += 1
                     pass
                 except Exception as err:
                     errors_list.append((article["link"], str(err)))
+                    fail_count += 1
         else:
             errors_list.append((url, str(articles_list)))
 
     if errors_list:
-        return {
+        print({
             "statusCode": 207,
             "body": {"errors": errors_list}
-        }
+        })
     else:
-        return {
+        print({
             "statusCode": 200,
             "body": "All feeds updated successfully."
-        }
+        })
+    
+    print(f"Articles Saved:{success_count}")
+    print(f"Duplicate Articles:{dup_count}")
+    print(f"Failed Articles:{fail_count}")
