@@ -7,6 +7,11 @@ from translation import main as translator
 def lambda_handler(event, context):
     """
     Scheduled Lambda function to collect RSS articles hourly.
+    - Connects to MongoDB using db_connect.py
+    - Parses all feeds in mongodb feeds collection using rss_parser.py
+    - Filters duplicate articles already found in articles collection via "provider" and "title".
+    - Saves non-duplicates to articles collection.
+    - Logs parsing stats to Cloudwatch (via print function)
     """
 
     db = db_connector()
@@ -39,7 +44,7 @@ def lambda_handler(event, context):
             print(f"Skipping incomplete feed config: {feed}")
             continue
 
-        success, articles_list = rss_parser([provider, genre, url])
+        success, articles_list = rss_parser([provider, genre, url])    ## RSS scraper call.
 
 
         if success:
@@ -50,16 +55,15 @@ def lambda_handler(event, context):
             for article in articles_list:
                 article["translated"] = False
                 article["o_language"] = language
-                if language != "en":
-                    title_translation = translator(language, article["title"])
-                    summary_translation = translator(language, article["summary"])
-                    if title_translation[0] and summary_translation[0]:
-                        article["title"] = title_translation[1]
-                        article["summary"] = summary_translation[1]
-                        article["translated"] = True
-                    else:
-                        print(f"Translation errors: Title: {title_translation[1]}, Summary: {summary_translation[1]}")
-                        continue
+
+                existing = articles_collection.find_one({
+                "title": article["title"],
+                "provider": provider})
+
+                if existing:
+                    dup_count += 1
+                    continue
+
                 try:
                     articles_collection.insert_one(article)
                     success_count += 1
@@ -83,6 +87,6 @@ def lambda_handler(event, context):
             "body": "All feeds updated successfully."
         })
     
-    print(f"Articles Saved:{success_count}")
+    print(f"Articles Saved:{success_count}") 
     print(f"Duplicate Articles:{dup_count}")
     print(f"Failed Articles:{fail_count}")

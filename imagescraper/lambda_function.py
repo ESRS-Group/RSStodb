@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup
-from testdb_connect import main as db_connector
+from db_connect import main as db_connector
 import requests
 import certifi
 from pymongo import errors
